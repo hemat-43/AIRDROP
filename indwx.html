@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AFG CASH | Smart Afghan Exchange & AirDrop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* د بنسټیزو متغیرونو او سیټاپ تعریف */
+        :root {
+            --primary: #0a0e17;
+            --secondary: #1a1f2e;
+            --accent: #00d4ff;
+            --accent-gradient: linear-gradient(135deg, #00d4ff 0%, #0088ff 100%);
+            --success: #00ff88;
+            --warning: #ffaa00;
+            --danger: #ff4757;
+            --text: #ffffff;
+            --text-secondary: #a0aec0;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --radius: 20px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif; background: var(--primary); color: var(--text); min-height: 100vh; overflow-x: hidden; padding-bottom: 80px; }
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .card { background: var(--glass); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: var(--radius); padding: 20px; margin: 15px; box-shadow: var(--shadow); transition: var(--transition); }
+        .card:hover { transform: translateY(-5px); border-color: rgba(0, 212, 255, 0.3); }
+        /* د نوی ښه راغلاست اسکرین سټایل */
+        .welcome-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--primary); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; transition: opacity 0.5s ease; }
+        .welcome-screen.hidden { opacity: 0; pointer-events: none; }
+        .welcome-logo { width: 140px; height: 140px; background: var(--accent-gradient); border-radius: 35px; display: flex; justify-content: center; align-items: center; margin-bottom: 30px; animation: logoPulse 2s infinite alternate; box-shadow: 0 0 60px rgba(0, 212, 255, 0.4); }
+        @keyframes logoPulse {
+            0% { transform: scale(1) rotate(0deg); box-shadow: 0 0 40px rgba(0, 212, 255, 0.3); }
+            100% { transform: scale(1.08) rotate(5deg); box-shadow: 0 0 80px rgba(0, 212, 255, 0.6); }
+        }
+        .welcome-logo i { font-size: 70px; color: white; }
+        .welcome-text { text-align: center; margin-bottom: 40px; padding: 0 25px; }
+        .welcome-text h1 { font-size: 36px; margin-bottom: 15px; background: linear-gradient(135deg, #00d4ff 0%, #0088ff 50%, #a100ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800; letter-spacing: 1px; }
+        .welcome-text p { font-size: 16px; line-height: 1.6; color: var(--text-secondary); max-width: 350px; }
+        /* د لوډینګ بار سټایل */
+        .loader-container { width: 80%; max-width: 320px; margin-top: 20px; }
+        .loader-text { text-align: center; margin-bottom: 15px; font-size: 15px; color: var(--text-secondary); }
+        .loader-bar { width: 100%; height: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05); }
+        .loader-progress { height: 100%; background: var(--accent-gradient); border-radius: 10px; width: 0%; transition: width 0.3s ease-out; }
+        .loading-percentage { text-align: center; margin-top: 12px; font-size: 15px; font-weight: 600; color: var(--accent); text-shadow: 0 0 10px rgba(0, 212, 255, 0.5); }
+        /* د Header او عمومي UI سټایلونه */
+        .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 15px 10px; }
+        .header-left h1 { font-size: 24px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700; }
+        .header-right { display: flex; gap: 12px; }
+        .icon-btn { width: 44px; height: 44px; border-radius: 14px; background: var(--secondary); border: 1px solid var(--glass-border); color: var(--text); font-size: 18px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: var(--transition); }
+        .icon-btn:hover { background: var(--accent); color: var(--primary); transform: rotate(15deg); }
+        /* د کیفې کارډونو سټایل */
+        .balance-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 0 15px; }
+        .balance-card { position: relative; overflow: hidden; }
+        .balance-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; background: var(--accent-gradient); }
+        .balance-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .currency-icon { width: 44px; height: 44px; border-radius: 14px; background: rgba(0, 212, 255, 0.12); display: flex; justify-content: center; align-items: center; font-size: 22px; border: 1px solid rgba(0, 212, 255, 0.2); }
+        .balance-amount { font-size: 32px; font-weight: 800; margin: 10px 0; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .balance-label { color: var(--text-secondary); font-size: 14px; font-weight: 500; }
+        /* د چټک عملونو سټایل */
+        .quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px 15px; }
+        .action-btn { display: flex; flex-direction: column; align-items: center; gap: 10px; background: none; border: none; color: var(--text); cursor: pointer; transition: var(--transition); padding: 12px 5px; border-radius: 16px; background: rgba(255, 255, 255, 0.03); }
+        .action-btn:hover { background: rgba(0, 212, 255, 0.1); transform: translateY(-5px); }
+        .action-circle { width: 56px; height: 56px; border-radius: 18px; background: var(--accent-gradient); display: flex; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3); transition: var(--transition); }
+        .action-btn:hover .action-circle { transform: scale(1.1) rotate(10deg); box-shadow: 0 10px 30px rgba(0, 212, 255, 0.5); }
+        .action-btn span { font-size: 12px; font-weight: 600; margin-top: 2px; }
+        /* د نرخونو کارډ سټایل */
+        .rate-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .rate-badge { background: var(--accent-gradient); padding: 6px 18px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; }
+        .rate-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .rate-item { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 12px; }
+        .rate-value { font-size: 16px; font-weight: 700; color: var(--success); }
+        .rate-label { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+        /* د لاندني نوي بار سټایل */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(10, 14, 23, 0.97); backdrop-filter: blur(25px); border-top: 1px solid var(--glass-border); display: flex; justify-content: space-around; padding: 16px 0 20px; z-index: 100; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: none; color: var(--text-secondary); font-size: 11px; cursor: pointer; transition: var(--transition); flex: 1; position: relative; }
+        .nav-item.active { color: var(--accent); }
+        .nav-item.active::before { content: ''; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); width: 50px; height: 4px; background: var(--accent-gradient); border-radius: 0 0 4px 4px; }
+        .nav-item i { font-size: 20px; margin-bottom: 2px; }
+        /* د تبادلې پاڼې سټایلونه */
+        .currency-selector { display: flex; justify-content: space-between; align-items: center; padding: 18px; background: var(--secondary); border-radius: 18px; cursor: pointer; border: 1px solid var(--glass-border); transition: var(--transition); }
+        .currency-selector:hover { border-color: var(--accent); background: rgba(0, 212, 255, 0.05); }
+        .currency-info { display: flex; align-items: center; gap: 12px; }
+        .currency-flag { font-size: 28px; }
+        .currency-name { font-weight: 700; font-size: 17px; }
+        .amount-input { width: 100%; padding: 25px 20px; background: var(--secondary); border: 2px solid transparent; border-radius: 18px; color: var(--text); font-size: 40px; font-weight: 800; text-align: center; transition: var(--transition); }
+        .amount-input:focus { outline: none; border-color: var(--accent); background: rgba(0, 212, 255, 0.05); }
+        .exchange-info { display: flex; justify-content: space-between; padding: 20px; background: rgba(0, 212, 255, 0.1); border-radius: 18px; border: 1px solid rgba(0, 212, 255, 0.2); }
+        .exchange-btn { background: var(--accent-gradient); border: none; padding: 22px; border-radius: 18px; color: white; font-size: 19px; font-weight: 800; cursor: pointer; transition: var(--transition); display: flex; justify-content: center; align-items: center; gap: 12px; letter-spacing: 0.5px; margin-top: 10px; }
+        .exchange-btn:hover { transform: translateY(-5px); box-shadow: 0 12px 35px rgba(0, 212, 255, 0.5); }
+        /* د AirDrop دندو پاڼې سټایلونه */
+        .task-list { display: flex; flex-direction: column; gap: 15px; }
+        .task-item { display: flex; align-items: center; gap: 15px; padding: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .task-item:last-child { border-bottom: none; }
+        .task-icon { width: 54px; height: 54px; border-radius: 16px; background: rgba(0, 212, 255, 0.1); display: flex; justify-content: center; align-items: center; font-size: 22px; border: 1px solid rgba(0, 212, 255, 0.2); }
+        .task-details { flex: 1; }
+        .task-details div:first-child { font-weight: 700; margin-bottom: 5px; font-size: 15px; }
+        .task-details div:last-child { font-size: 13px; color: var(--text-secondary); }
+        .task-reward { color: var(--success); font-weight: 800; font-size: 16px; margin-bottom: 8px; text-align: right; }
+        .task-btn { padding: 10px 24px; background: var(--accent-gradient); border: none; border-radius: 12px; color: white; font-weight: 700; cursor: pointer; transition: var(--transition); font-size: 14px; }
+        .task-btn.completed { background: var(--success); }
+        .task-btn.completed:hover { background: #00cc77; }
+        /* د پروفایل پاڼې بشپړ سټایل */
+        .profile-header { text-align: center; padding: 25px 20px; }
+        .profile-photo { width: 110px; height: 110px; border-radius: 50%; border: 3px solid var(--accent); padding: 4px; margin: 0 auto 25px; background: var(--secondary); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        .profile-photo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .profile-photo .default-avatar { font-size: 50px; color: var(--text-secondary); }
+        .profile-header h2 { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+        .profile-header .user-id { color: var(--text-secondary); font-size: 15px; margin-bottom: 5px; font-family: monospace; background: rgba(255, 255, 255, 0.05); padding: 6px 12px; border-radius: 10px; display: inline-block; }
+        .profile-header .user-username { color: var(--accent); font-size: 16px; font-weight: 600; margin-top: 5px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 20px 15px; }
+        .stat-card { text-align: center; padding: 22px 15px; }
+        .stat-value { font-size: 28px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+        .stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 600; letter-spacing: 0.5px; }
+        /* د خبرتیا پیغام (Toast) سټایلونه */
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--secondary); border-left: 5px solid var(--accent); padding: 18px 22px; border-radius: 14px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; z-index: 1000; opacity: 0; transition: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); max-width: 90%; }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast i { font-size: 22px; }
+        /* د Skeleton لوډر سټایلونه */
+        .skeleton { background: linear-gradient(90deg, #1a1f2e 25%, #2a3142 50%, #1a1f2e 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 10px; }
+        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        /* د رسپانسویټ (Responsive) سټایلونه */
+        @media (max-width: 480px) {
+            .balance-grid, .rate-grid { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: repeat(2, 1fr); }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .welcome-logo { width: 120px; height: 120px; border-radius: 30px; }
+            .welcome-logo i { font-size: 60px; }
+            .welcome-text h1 { font-size: 30px; }
+            .amount-input { font-size: 36px; padding: 22px 15px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- نوې ښه راغلاست اسکرین -->
+    <div id="welcomeScreen" class="welcome-screen">
+        <div class="welcome-logo">
+            <i class="fas fa-coins"></i>
+        </div>
+        <div class="welcome-text">
+            <h1>AFG CASH</h1>
+            <p>د ځیرکې افغان تبادلې او AirDrop سیسټم ته ښه راغلئ. تاسو موږ سره د AFN، TON او USDT سره په امنه توګه تبادله کولای شئ او د AirDrop ګټې ترلاسه کولای شئ.</p>
+        </div>
+        <div class="loader-container">
+            <div class="loader-text">د AFG CASH سیسټم لوډیږي...</div>
+            <div class="loader-bar">
+                <div id="loaderProgress" class="loader-progress"></div>
+            </div>
+            <div id="loadingPercentage" class="loading-percentage">0%</div>
+        </div>
+    </div>
+
+    <!-- اصلي اپلیکیشن (لومړی پټ دی) -->
+    <div id="mainApp" style="display: none;">
+        <!-- Header برخه -->
+        <div class="header">
+            <div class="header-left">
+                <h1>AFG CASH</h1>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" onclick="showToast('اعلانونه', 'نوي اعلانونه نشته')">
+                    <i class="fas fa-bell"></i>
+                </button>
+                <button class="icon-btn" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- کور پاڼه (Home) -->
+        <div id="homePage" class="page active">
+            <!-- کیفې کارډونه -->
+            <div class="balance-grid">
+                <div class="card balance-card">
+                    <div class="balance-header">
+                        <div class="currency-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <span class="balance-label">افغانۍ (AFN)</span>
+                    </div>
+                    <div class="balance-amount" id="afnBalance">0 AFN</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">+ <span id="airdropBalance">0</span> د AirDrop څخه</div>
+                </div>
+                <div class="card balance-card">
+                    <div class="balance-header">
+                        <div class="currency-icon">
+                            <i class="fab fa-telegram"></i>
+                        </div>
+                        <span class="balance-label">TON</span>
+                    </div>
+                    <div class="balance-amount" id="tonBalance">0 TON</div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">≈ $0.00</div>
+                </div>
+            </div>
+
+            <!-- چټک عملونه -->
+            <div class="quick-actions">
+                <button class="action-btn" onclick="switchPage('exchange')">
+                    <div class="action-circle">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <span>تبادله</span>
+                </button>
+                <button class="action-btn" onclick="switchPage('tasks')">
+                    <div class="action-circle">
+                        <i class="fas fa-gifts"></i>
+                    </div>
+                    <span>AirDrop</span>
+                </button>
+                <button class="action-btn" onclick="showInvite()">
+                    <div class="action-circle">
+                        <i class="fas fa-user-plus"></i>
+                    </div>
+                    <span>بلنه</span>
+                </button>
+                <button class="action-btn" onclick="showWithdraw()">
+                    <div class="action-circle">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <span>پورته کول</span>
+                </button>
+            </div>
+
+            <!-- د تبادلې بیړني نرخونه -->
+            <div class="card rate-card">
+                <div class="rate-header">
+                    <h3>د تبادلې بیړني نرخونه</h3>
+                    <span class="rate-badge">نن</span>
+                </div>
+                <div class="rate-grid">
+                    <div class="rate-item">
+                        <span class="rate-value" id="rateAFNtoTON">1 AFN = 0.000025 TON</span>
+                        <span class="rate-label">افغانۍ → TON</span>
+                    </div>
+                    <div class="rate-item">
+                        <span class="rate-value" id="rateTONtoAFN">1 TON = 40,000 AFN</span>
+                        <span class="rate-label">TON → افغانۍ</span>
+                    </div>
+                    <div class="rate-item">
+                        <span class="rate-value" id="rateAFNtoUSDT">1 AFN = 0.0115 USDT</span>
+                        <span class="rate-label">افغانۍ → USDT</span>
+                    </div>
+                    <div class="rate-item">
+                        <span class="rate-value" id="rateUSDTtoAFN">1 USDT = 87 AFN</span>
+                        <span class="rate-label">USDT → افغانۍ</span>
+                    </div>
+                </div>
+                <div style="margin-top: 15px; text-align: right; font-size: 12px; color: var(--text-secondary);">
+                    تازه شوی: <span id="rateTimestamp">نن 14:30</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- د تبادلې پاڼه (Exchange) -->
+        <div id="exchangePage" class="page">
+            <div class="card">
+                <h3 style="margin-bottom: 20px;">اسعارو تبادله</h3>
+                <div class="exchange-form">
+                    <div class="currency-selector" onclick="showCurrencySelector('from')">
+                        <div class="currency-info">
+                            <div class="currency-flag">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div>
+                                <div class="currency-name">افغانۍ (AFN)</div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">پاتې: <span id="fromBalance">0 AFN</span></div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <input type="number" class="amount-input" id="exchangeAmount" placeholder="0" min="0" step="0.01" oninput="calculateExchange()">
+                    <div style="text-align: center; margin: 10px 0;">
+                        <button class="icon-btn" onclick="swapCurrencies()" style="width: 50px; height: 50px; margin: 0 auto; background: var(--accent-gradient); color: white; border: none;">
+                            <i class="fas fa-arrows-alt-v"></i>
+                        </button>
+                    </div>
+                    <div class="currency-selector" onclick="showCurrencySelector('to')">
+                        <div class="currency-info">
+                            <div class="currency-flag">
+                                <i class="fab fa-telegram"></i>
+                            </div>
+                            <div>
+                                <div class="currency-name">TON</div>
+                                <div style="font-size: 13px; color: var(--text-secondary);">پاتې: <span id="toBalance">0 TON</span></div>
+                            </div>
+                        </div>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="exchange-info">
+                        <div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">نرخ</div>
+                            <div style="font-size: 17px; font-weight: 700;" id="exchangeRate">1 AFN = 0.000025 TON</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 13px; color: var(--text-secondary);">تاسو ترلاسه کوئ</div>
+                            <div style="font-size: 17px; font-weight: 700; color: var(--success);" id="receiveAmount">0 TON</div>
+                        </div>
+                    </div>
+                    <button class="exchange-btn" onclick="performExchange()">
+                        <i class="fas fa-exchange-alt"></i>
+                        اوس تبادله وکړئ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- د AirDrop دندو پاڼه (Tasks) -->
+        <div id="tasksPage" class="page">
+            <div class="card">
+                <h3 style="margin-bottom: 20px;">د AirDrop دندې</h3>
+                <div class="task-list">
+                    <div class="card task-item">
+                        <div class="task-icon" style="background: rgba(0, 212, 255, 0.1);">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="task-details">
+                            <div>ورځنی بانس</div>
+                            <div>هره ورځ ننوځئ ترڅو انعام ترلاسه کړئ</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="task-reward">+5 AFN</div>
+                            <button id="dailyTaskBtn" class="task-btn" onclick="claimTask('daily')">ترلاسه کول</button>
+                        </div>
+                    </div>
+                    <div class="card task-item">
+                        <div class="task-icon" style="background: rgba(0, 255, 136, 0.1);">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="task-details">
+                            <div>ملګري بلنه ورکړئ</div>
+                            <div>5 ملګري بلنه ورکړئ ترڅو بانس ترلاسه کړئ</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="task-reward">+50 AFN</div>
+                            <button class="task-btn" onclick="showInvite()">بلنه</button>
+                        </div>
+                    </div>
+                    <div class="card task-item">
+                        <div class="task-icon" style="background: rgba(255, 106, 0, 0.1);">
+                            <i class="fab fa-telegram"></i>
+                        </div>
+                        <div class="task-details">
+                            <div>د @AfgCashAirDrop چینل سره یوځای شئ</div>
+                            <div>زموږ د آفیشل چینل غړی شئ</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div class="task-reward">+100 AFN</div>
+                            <button id="channelTaskBtn" class="task-btn" onclick="completeTask('channel')">یوځای کیدل</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- پروفایل پاڼه (Profile) -->
+        <div id="profilePage" class="page">
+            <div class="profile-header">
+                <div class="profile-photo" id="userProfilePhoto">
+                    <!-- د Telegram عکس به دلته ښکاره شي -->
+                    <i class="fas fa-user default-avatar"></i>
+                </div>
+                <h2 id="userName">کارن نوم</h2>
+                <div class="user-id" style="color: var(--text-secondary); font-size: 15px; margin: 8px 0;">
+                    Telegram ID: <span id="userId">123456789</span>
+                </div>
+                <div id="userUsername" class="user-username"></div>
+            </div>
+            <div class="stats-grid">
+                <div class="card stat-card">
+                    <div class="stat-value" id="totalAFN">0</div>
+                    <div class="stat-label">ټول AFN ترلاسه شوي</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-value" id="totalExchanges">0</div>
+                    <div class="stat-label">تبادلې</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-value" id="totalInvites">0</div>
+                    <div class="stat-label">بلنې</div>
+                </div>
+            </div>
+            <div class="card" style="margin: 15px;">
+                <h3 style="margin-bottom: 15px;">د حساب معلومات</h3>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                        <span style="color: var(--text-secondary);">د بساط نیټه</span>
+                        <span id="joinDate">2024-01-01</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                        <span style="color: var(--text-secondary);">حالت</span>
+                        <span style="color: var(--success);">فعال</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                        <span style="color: var(--text-secondary);">ټیر</span>
+                        <span style="color: var(--accent);">پریمیم</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- لاندنی نوی بار -->
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="switchPage('home')">
+            <i class="fas fa-home"></i>
+            <span>کور</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('exchange')">
+            <i class="fas fa-exchange-alt"></i>
+            <span>تبادله</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('tasks')">
+            <i class="fas fa-gifts"></i>
+            <span>AirDrop</span>
+        </button>
+        <button class="nav-item" onclick="switchPage('profile')">
+            <i class="fas fa-user"></i>
+            <span>پروفایل</span>
+        </button>
+    </div>
+
+    <!-- خبرتیا (Toast) -->
+    <div id="toast" class="toast">
+        <i class="fas fa-check-circle" style="color: var(--success);"></i>
+        <div>
+            <div style="font-weight: 700;" id="toastTitle">بریالیتوب</div>
+            <div style="font-size: 13px; color: var(--text-secondary);" id="toastMessage">عملیات په بریالیتوب سره ترسره شو.</div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp API کارول
+        const tg = window.Telegram.WebApp;
+        let userData = {};
+        // د کیفې پاتې شونې (په لنډه توګه)
+        let balances = {
+            afn: 1000,
+            ton: 0.1,
+            usdt: 10,
+            airdrop: 0
+        };
+        // د تبادلې نرخونه
+        let exchangeRates = {
+            afn_to_ton: 0.000025,
+            ton_to_afn: 40000,
+            afn_to_usdt: 0.0115,
+            usdt_to_afn: 87
+        };
+        let exchangeState = {
+            fromCurrency: 'AFN',
+            toCurrency: 'TON',
+            amount: 0,
+            rate: 0.000025
+        };
+
+        // د Telegram WebApp بشپړ فعالول
+        tg.expand();
+        tg.setHeaderColor('#0a0e17');
+        tg.setBackgroundColor('#0a0e17');
+
+        // د Telegram څخه د کارن معلومات ترلاسه کول
+        if (tg.initDataUnsafe.user) {
+            const user = tg.initDataUnsafe.user;
+            userData = {
+                id: user.id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+                photoUrl: user.photo_url
+            };
+        }
+
+        // د ښه راغلاست اسکرین لوډینګ پروسه (10 ثانیې)
+        let progress = 0;
+        const totalTime = 10000; // 10,000 ملي ثانیې
+        const intervalTime = 100; // هر 100ms تازه کول
+        const progressIncrement = (intervalTime / totalTime) * 100;
+        const loaderInterval = setInterval(() => {
+            progress += progressIncrement;
+            if (progress > 100) progress = 100;
+            document.getElementById('loaderProgress').style.width = progress + '%';
+            document.getElementById('loadingPercentage').textContent = Math.round(progress) + '%';
+            if (progress >= 100) {
+                clearInterval(loaderInterval);
+                setTimeout(() => {
+                    document.getElementById('welcomeScreen').classList.add('hidden');
+                    document.getElementById('mainApp').style.display = 'block';
+                    initializeUserProfile();
+                    updateBalances();
+                    updateRates();
+                    showToast('AFG CASH ته ښه راغلئ!', 'اسانه تبادله او د AirDrop ګټې اوس ستاسو په اختیار کې دي.');
+                }, 500);
+            }
+        }, intervalTime);
+
+        // د کارن پروفایل په پاڼه کې ښودل
+        function initializeUserProfile() {
+            if (tg.initDataUnsafe.user) {
+                const user = tg.initDataUnsafe.user;
+                document.getElementById('userId').textContent = user.id;
+                let fullName = user.first_name || '';
+                if (user.last_name) fullName += ' ' + user.last_name;
+                document.getElementById('userName').textContent = fullName || 'Telegram کارن';
+                const profilePhotoContainer = document.getElementById('userProfilePhoto');
+                if (user.photo_url) {
+                    profilePhotoContainer.innerHTML = `<img src="${user.photo_url}" alt="Profile Photo" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">`;
+                } else {
+                    profilePhotoContainer.innerHTML = '<i class="fas fa-user default-avatar" style="font-size: 50px; line-height: 100px; color: var(--text-secondary);"></i>';
+                }
+                if (user.username) {
+                    document.getElementById('userUsername').textContent = `@${user.username}`;
+                }
+            }
+            const joinDate = new Date();
+            document.getElementById('joinDate').textContent = joinDate.toISOString().split('T')[0];
+        }
+
+        // د پاڼې بدلول
+        function switchPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            document.getElementById(page + 'Page').classList.add('active');
+            document.querySelectorAll('.nav-item').forEach((nav, index) => {
+                if (page === 'home' && index === 0) nav.classList.add('active');
+                if (page === 'exchange' && index === 1) nav.classList.add('active');
+                if (page === 'tasks' && index === 2) nav.classList.add('active');
+                if (page === 'profile' && index === 3) nav.classList.add('active');
+            });
+        }
+
+        // کیفې پاتې شونې تازه کول
+        function updateBalances() {
+            const formatNumber = (num) => {
+                return num.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 8
+                });
+            };
+            document.getElementById('afnBalance').textContent = formatNumber(balances.afn) + ' AFN';
+            document.getElementById('tonBalance').textContent = formatNumber(balances.ton) + ' TON';
+            document.getElementById('airdropBalance').textContent = formatNumber(balances.airdrop);
+            document.getElementById('fromBalance').textContent = formatNumber(balances.afn) + ' AFN';
+            document.getElementById('toBalance').textContent = formatNumber(balances.ton) + ' TON';
+            document.getElementById('totalAFN').textContent = formatNumber(balances.afn + balances.airdrop);
+        }
+
+        // د تبادلې نرخونه تازه کول
+        function updateRates() {
+            document.getElementById('rateAFNtoTON').textContent = `1 AFN = ${exchangeRates.afn_to_ton.toFixed(8)} TON`;
+            document.getElementById('rateTONtoAFN').textContent = `1 TON = ${exchangeRates.ton_to_afn.toLocaleString()} AFN`;
+            document.getElementById('rateAFNtoUSDT').textContent = `1 AFN = ${exchangeRates.afn_to_usdt.toFixed(4)} USDT`;
+            document.getElementById('rateUSDTtoAFN').textContent = `1 USDT = ${exchangeRates.usdt_to_afn} AFN`;
+            const now = new Date();
+            document.getElementById('rateTimestamp').textContent = `نن ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }
+
+        // د تبادلې مقدار محاسبه
+        function calculateExchange() {
+            const amount = parseFloat(document.getElementById('exchangeAmount').value) || 0;
+            exchangeState.amount = amount;
+            if (exchangeState.fromCurrency === 'AFN' && exchangeState.toCurrency === 'TON') {
+                exchangeState.rate = exchangeRates.afn_to_ton;
+                const receive = amount * exchangeState.rate;
+                document.getElementById('exchangeRate').textContent = `1 AFN = ${exchangeState.rate.toFixed(8)} TON`;
+                document.getElementById('receiveAmount').textContent = receive.toFixed(8) + ' TON';
+            } else if (exchangeState.fromCurrency === 'TON' && exchangeState.toCurrency === 'AFN') {
+                exchangeState.rate = exchangeRates.ton_to_afn;
+                const receive = amount * exchangeState.rate;
+                document.getElementById('exchangeRate').textContent = `1 TON = ${exchangeState.rate.toLocaleString()} AFN`;
+                document.getElementById('receiveAmount').textContent = receive.toFixed(2) + ' AFN';
+            }
+        }
+
+        // اسعارو بدلول
+        function swapCurrencies() {
+            const temp = exchangeState.fromCurrency;
+            exchangeState.fromCurrency = exchangeState.toCurrency;
+            exchangeState.toCurrency = temp;
+            updateCurrencySelectors();
+            calculateExchange();
+        }
+
+        // د اسعارو انتخاب کوونکي تازه کول
+        function updateCurrencySelectors() {
+            const fromIcon = document.querySelector('#exchangePage .currency-selector:first-child .currency-flag i');
+            const fromName = document.querySelector('#exchangePage .currency-selector:first-child .currency-name');
+            const fromBalance = document.getElementById('fromBalance');
+            const toIcon = document.querySelector('#exchangePage .currency-selector:last-child .currency-flag i');
+            const toName = document.querySelector('#exchangePage .currency-selector:last-child .currency-name');
+            const toBalance = document.getElementById('toBalance');
+            if (exchangeState.fromCurrency === 'AFN') {
+                fromIcon.className = 'fas fa-money-bill-wave';
+                fromName.textContent = 'افغانۍ (AFN)';
+                fromBalance.textContent = balances.afn.toFixed(2) + ' AFN';
+            } else if (exchangeState.fromCurrency === 'TON') {
+                fromIcon.className = 'fab fa-telegram';
+                fromName.textContent = 'TON';
+                fromBalance.textContent = balances.ton.toFixed(8) + ' TON';
+            }
+            if (exchangeState.toCurrency === 'AFN') {
+                toIcon.className = 'fas fa-money-bill-wave';
+                toName.textContent = 'افغانۍ (AFN)';
+                toBalance.textContent = balances.afn.toFixed(2) + ' AFN';
+            } else if (exchangeState.toCurrency === 'TON') {
+                toIcon.className = 'fab fa-telegram';
+                toName.textContent = 'TON';
+                toBalance.textContent = balances.ton.toFixed(8) + ' TON';
+            }
+        }
+
+        // تبادله ترسره کول
+        function performExchange() {
+            const amount = exchangeState.amount;
+            if (amount <= 0) {
+                showToast('تېروتنه', 'مهرباني وکړئ یو باوري مقدار دننه کړئ', 'error');
+                return;
+            }
+            let fromBalance = 0;
+            if (exchangeState.fromCurrency === 'AFN') fromBalance = balances.afn;
+            if (exchangeState.fromCurrency === 'TON') fromBalance = balances.ton;
+            if (amount > fromBalance) {
+                showToast('نابسېبه پاتې شونې', `تاسو په ${exchangeState.fromCurrency} کې کافي پیسې نلرئ`, 'error');
+                return;
+            }
+            const receiveAmount = amount * exchangeState.rate;
+            if (exchangeState.fromCurrency === 'AFN') balances.afn -= amount;
+            if (exchangeState.fromCurrency === 'TON') balances.ton -= amount;
+            if (exchangeState.toCurrency === 'AFN') balances.afn += receiveAmount;
+            if (exchangeState.toCurrency === 'TON') balances.ton += receiveAmount;
+            updateBalances();
+            updateCurrencySelectors();
+            document.getElementById('exchangeAmount').value = '';
+            showToast('تبادله بریالۍ شوه',
+                `${amount.toFixed(2)} ${exchangeState.fromCurrency} په ${receiveAmount.toFixed(8)} ${exchangeState.toCurrency} بدل شول.`);
+            const totalExchanges = parseInt(document.getElementById('totalExchanges').textContent) || 0;
+            document.getElementById('totalExchanges').textContent = totalExchanges + 1;
+        }
+
+        // د AirDrop دندې ترسره کول
+        function claimTask(taskType) {
+            if (taskType === 'daily') {
+                // د تاسو د غوښتنې له مخې: د ورځني بانس لپاره 5 AFN
+                balances.afn += 5;
+                balances.airdrop += 5;
+                updateBalances();
+                showToast('ورځنی بانس ترلاسه شو', '+5 AFN ستاسو په کیفې کې زیات شو');
+                const btn = document.getElementById('dailyTaskBtn');
+                btn.textContent = 'ترلاسه شو';
+                btn.classList.add('completed');
+                btn.disabled = true;
+            }
+        }
+        function completeTask(taskType) {
+            if (taskType === 'channel') {
+                // د Telegram چینل ته لیږدول
+                const channelLink = 'https://t.me/AfgCashAirDrop';
+                if (tg.openLink) {
+                    tg.openLink(channelLink);
+                } else {
+                    window.open(channelLink, '_blank');
+                }
+                // په فرض کې چې کارن یوځای شو، 100 AFN اضافه کول
+                setTimeout(() => {
+                    balances.afn += 100;
+                    balances.airdrop += 100;
+                    updateBalances();
+                    showToast('چینل سره یوځای شئ', '+100 AFN د چینل سره د یوځای کیدو لپاره ترلاسه شول!');
+                    const btn = document.getElementById('channelTaskBtn');
+                    btn.textContent = 'یوځای شوی';
+                    btn.classList.add('completed');
+                    btn.disabled = true;
+                }, 2000);
+            }
+        }
+
+        // بلنه ورکول
+        function showInvite() {
+            const inviteLink = `https://t.me/share/url?url=Join%20AFG%20CASH&text=د AirDrop او تبادلې لپاره AFG CASH سره یوځای شئ!%20%0A%0Aزما د بلنې کوډ کاروئ: ${userData.id}`;
+            if (tg.openLink) {
+                tg.openLink(inviteLink);
+            } else {
+                window.open(inviteLink, '_blank');
+            }
+            // د تاسو د غوښتنې له مخې: هر بلل شوي کارن لپاره 10 AFN
+            setTimeout(() => {
+                balances.afn += 10;
+                balances.airdrop += 10;
+                updateBalances();
+                const totalInvites = parseInt(document.getElementById('totalInvites').textContent) || 0;
+                document.getElementById('totalInvites').textContent = totalInvites + 1;
+                showToast('بلنه لیږل شوه', 'تاسو د یو ملګري د بلنې لپاره 10 AFN ترلاسه کړل!');
+            }, 2000);
+        }
+
+        // پیسې پورته کول
+        function showWithdraw() {
+            // د تاسو د شرط ګڼنې څخه: یوازې هغه وخت چې د AirDrop ګټې له 5 AFN څخه زیاتې وي
+            if (balances.airdrop <= 5) {
+                showToast('پورته کول نشي', 'تاسو باید لږ تر لږه 5 AFN د AirDrop څخه ترلاسه کړي وي ترڅو پیسې پورته کړئ.', 'warning');
+                return;
+            }
+            showToast('د پورته کولو غوښتنه', 'ستاسو غوښتنه ترسره شوه. پیسې به په 24 ساعتونو کې لیږل شي.');
+        }
+
+        // د معلوماتو تازه کول (Refresh)
+        function refreshData() {
+            showToast('تازه کول', 'د تبادلې نرخونه تازه کیږي...');
+            exchangeRates.afn_to_ton = 0.000025 + (Math.random() * 0.000001 - 0.0000005);
+            exchangeRates.ton_to_afn = 40000 + (Math.random() * 100 - 50);
+            exchangeRates.afn_to_usdt = 0.0115 + (Math.random() * 0.0001 - 0.00005);
+            exchangeRates.usdt_to_afn = 87 + (Math.random() * 0.5 - 0.25);
+            updateRates();
+            updateBalances();
+            setTimeout(() => {
+                showToast('معلومات تازه شول', 'د تبادلې نرخونه په بریالیتوب سره تازه شول.');
+            }, 1000);
+        }
+
+        // خبرتیا پیغام (Toast)
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+                icon.style.color = 'var(--danger)';
+                toast.style.borderLeftColor = 'var(--danger)';
+            } else if (type === 'warning') {
+                icon.className = 'fas fa-exclamation-triangle';
+                icon.style.color = 'var(--warning)';
+                toast.style.borderLeftColor = 'var(--warning)';
+            } else {
+                icon.className = 'fas fa-check-circle';
+                icon.style.color = 'var(--success)';
+                toast.style.borderLeftColor = 'var(--accent)';
+            }
+            toastTitle.textContent = title;
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // په پیل کې د تبادلې فورم تنظیمول
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrencySelectors();
+            calculateExchange();
+        });
+
+        // د اسعارو انتخاب کوونکي (ساده ډول)
+        function showCurrencySelector(type) {
+            const currencies = ['AFN', 'TON', 'USDT'];
+            const current = type === 'from' ? exchangeState.fromCurrency : exchangeState.toCurrency;
+            const selected = prompt(`${type === 'from' ? 'له کوم' : 'کوم'} اسعارو څخه غواړئ تبادله وکړئ؟\n1. AFN\n2. TON\n3. USDT`, current);
+            if (selected && currencies.includes(selected.toUpperCase())) {
+                if (type === 'from') {
+                    exchangeState.fromCurrency = selected.toUpperCase();
+                } else {
+                    exchangeState.toCurrency = selected.toUpperCase();
+                }
+                updateCurrencySelectors();
+                calculateExchange();
+            }
+        }
+    </script>
+</body>
+</html> 
